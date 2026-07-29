@@ -116,6 +116,13 @@ DB_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.$ -]{1,128}$")
 SCHEME_PREFIX_PATTERN = re.compile(r"^([A-Za-z][A-Za-z0-9+.\-]*)://")
 HOST_PORT_PATTERN = re.compile(r"^[A-Za-z0-9._\-]+:\d+(?:[/?#].*)?$")
 
+# Just enough DER to read validity dates and common names out of a certificate
+# that openssl would not validate. 2.5.4.3 is id-at-commonName.
+COMMON_NAME_OID = b"\x55\x04\x03"
+DER_UTC_TIME = 0x17
+DER_GENERALIZED_TIME = 0x18
+DER_EXPLICIT_VERSION = 0xA0
+
 
 @dataclass(frozen=True)
 class LinkTarget:
@@ -422,19 +429,95 @@ def parse_cert_datetime(value: str) -> datetime:
     return datetime.strptime(value, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
 
 
+def read_der_tlv(data: bytes, offset: int) -> tuple[int, bytes, int]:
+    """Read one DER tag/length/value triple, returning the tag, the value and
+    the offset just past it."""
+    if offset + 2 > len(data):
+        raise ValueError("Truncated certificate structure.")
+    tag = data[offset]
+    length_byte = data[offset + 1]
+    offset += 2
+    if length_byte < 0x80:
+        length = length_byte
+    else:
+        count = length_byte & 0x7F
+        if count == 0 or offset + count > len(data):
+            raise ValueError("Unsupported certificate length encoding.")
+        length = int.from_bytes(data[offset : offset + count], "big")
+        offset += count
+    if offset + length > len(data):
+        raise ValueError("Truncated certificate value.")
+    return tag, data[offset : offset + length], offset + length
+
+
+def der_children(contents: bytes) -> list[tuple[int, bytes]]:
+    children: list[tuple[int, bytes]] = []
+    offset = 0
+    while offset < len(contents):
+        tag, value, offset = read_der_tlv(contents, offset)
+        children.append((tag, value))
+    return children
+
+
+def der_common_name(name_der: bytes) -> str:
+    """Pull the commonName out of an X.501 Name (a sequence of sets of pairs)."""
+    for _, relative_name in der_children(name_der):
+        for _, attribute in der_children(relative_name):
+            parts = der_children(attribute)
+            if len(parts) == 2 and parts[0][1] == COMMON_NAME_OID:
+                return parts[1][1].decode("utf-8", "replace")
+    return ""
+
+
+def der_time_to_datetime(tag: int, raw: bytes) -> datetime:
+    text = raw.decode("ascii", "replace").strip()
+    if tag == DER_UTC_TIME:
+        stamp = datetime.strptime(text[:12], "%y%m%d%H%M%S")
+    elif tag == DER_GENERALIZED_TIME:
+        stamp = datetime.strptime(text[:14], "%Y%m%d%H%M%S")
+    else:
+        raise ValueError("Unsupported certificate time encoding.")
+    return stamp.replace(tzinfo=timezone.utc)
+
+
+def parse_certificate_der(der: bytes) -> tuple[str, str, str, str]:
+    """Read expiry date, days remaining, issuer CN and subject CN from raw DER.
+
+    ssl.getpeercert() returns an empty dict whenever the peer certificate was
+    not validated, so for an expired or self signed certificate the only way to
+    show its expiry date is to read the bytes directly.
+    """
+    _, certificate, _ = read_der_tlv(der, 0)
+    _, tbs_certificate, _ = read_der_tlv(certificate, 0)
+    fields = der_children(tbs_certificate)
+    if fields and fields[0][0] == DER_EXPLICIT_VERSION:
+        fields = fields[1:]
+    if len(fields) < 5:
+        raise ValueError("Certificate is missing expected fields.")
+
+    # serial, signature algorithm, issuer, validity, subject
+    issuer = der_common_name(fields[2][1])
+    subject = der_common_name(fields[4][1])
+
+    validity = der_children(fields[3][1])
+    if len(validity) < 2:
+        raise ValueError("Certificate validity is missing notAfter.")
+    not_after = der_time_to_datetime(validity[1][0], validity[1][1])
+    days = (not_after - datetime.now(timezone.utc)).days
+    return not_after.strftime("%Y-%m-%d"), str(days), issuer, subject
+
+
 def inspect_certificate_unverified(host: str, port: int, timeout_seconds: int) -> tuple[str, str, str, str]:
     try:
         context = ssl._create_unverified_context()
-        with socket.create_connection((host, port), timeout=timeout_seconds) as sock:
-            with context.wrap_socket(sock, server_hostname=host) as tls:
-                cert = tls.getpeercert()
-        expires = cert.get("notAfter", "")
-        subject = extract_cert_name(cert.get("subject", ()))
-        issuer = extract_cert_name(cert.get("issuer", ()))
-        days = ""
-        if expires:
-            days = str((parse_cert_datetime(expires) - datetime.now(timezone.utc)).days)
-        return expires, days, issuer, subject
+        with (
+            socket.create_connection((host, port), timeout=timeout_seconds) as sock,
+            context.wrap_socket(sock, server_hostname=host) as tls,
+        ):
+            der = tls.getpeercert(binary_form=True)
+        if not der:
+            return "", "", "", ""
+        return parse_certificate_der(der)
     except Exception:
         return "", "", "", ""
 
