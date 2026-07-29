@@ -16,10 +16,10 @@ from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, Signal, Slot
-from PySide6.QtGui import QColor, QTextOption
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
-    QApplication,
     QAbstractSpinBox,
+    QApplication,
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -39,7 +39,6 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
