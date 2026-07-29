@@ -232,9 +232,15 @@ class LinkCheckWorker(QRunnable):
 
     @Slot()
     def run(self) -> None:
-        self.signals.link_checked.emit(
-            check_target(self.target, self.timeout_seconds, self.warning_days)
-        )
+        try:
+            result = check_target(self.target, self.timeout_seconds, self.warning_days)
+        except Exception as exc:
+            # MainWindow counts these emissions down to decide when a round is
+            # over. A worker that dies without emitting leaves the count above
+            # zero forever, which keeps Check All Now disabled for the rest of
+            # the session, so every failure has to come back as a result.
+            result = failed_check_result(self.target, f"Check failed unexpectedly: {exc}")
+        self.signals.link_checked.emit(result)
 
 
 class IisActionWorker(QRunnable):
@@ -559,6 +565,31 @@ def check_target(target: LinkTarget, timeout_seconds: int, warning_days: int) ->
         message=" ".join(part for part in message_parts if part),
         issuer=ssl_result.issuer,
         subject=ssl_result.subject,
+    )
+
+
+def failed_check_result(target: LinkTarget, message: str) -> LinkCheckResult:
+    """A complete INACTIVE result, for when a check cannot be completed at all."""
+    return LinkCheckResult(
+        name=target.name,
+        input_url=target.input_url,
+        normalized_url=target.normalized_url,
+        domain=domain_for_url(target.normalized_url),
+        primary_ip="",
+        all_resolved_ips=[],
+        dns_status="FAILED",
+        dns_error=message,
+        availability_status="INACTIVE",
+        https_status="HTTPS FAILED",
+        ssl_status="SSL NOT CHECKED",
+        certificate_expires_at="",
+        certificate_days_remaining="",
+        response_time_ms="-",
+        http_code="-",
+        checked_at=now_text(),
+        message=message,
+        issuer="",
+        subject="",
     )
 
 
