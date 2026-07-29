@@ -1735,15 +1735,26 @@ class MainWindow(QMainWindow):
         if not selected:
             return
         links: list[str] = []
-        with Path(selected).open("r", newline="", encoding="utf-8-sig") as file:
-            reader = csv.reader(file)
-            for row in reader:
-                if not row:
-                    continue
-                value = row[0].strip()
-                if value.lower() in {"url", "link", "website"}:
-                    continue
-                links.append(value)
+        try:
+            with Path(selected).open("r", newline="", encoding="utf-8-sig") as file:
+                for row in csv.reader(file):
+                    if not row:
+                        continue
+                    value = row[0].strip()
+                    if value.lower() in {"url", "link", "website"}:
+                        continue
+                    links.append(value)
+        except OSError as exc:
+            # Missing file, no permission, or the file is locked by Excel.
+            QMessageBox.warning(self, "Could Not Read CSV", f"{Path(selected).name} could not be read.\n\n{exc}")
+            return
+        except (UnicodeDecodeError, csv.Error) as exc:
+            QMessageBox.warning(
+                self,
+                "Could Not Read CSV",
+                f"{Path(selected).name} does not look like a text CSV file.\n\n{exc}",
+            )
+            return
         self.add_links(links)
 
     def check_all(self) -> None:
