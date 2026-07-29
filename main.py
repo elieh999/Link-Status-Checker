@@ -2046,10 +2046,20 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
 
+def argument_value(argv: list[str], flag: str, default: str) -> str:
+    """The value after a flag, or the default when the flag or value is absent."""
+    if flag not in argv:
+        return default
+    position = argv.index(flag) + 1
+    if position >= len(argv):
+        return default
+    return argv[position]
+
+
 def main() -> int:
     if "--db-self-test" in sys.argv:
-        server = sys.argv[sys.argv.index("--server") + 1] if "--server" in sys.argv else r".\test"
-        database = sys.argv[sys.argv.index("--database") + 1] if "--database" in sys.argv else "test"
+        server = argument_value(sys.argv, "--server", r".\test")
+        database = argument_value(sys.argv, "--database", "test")
         trust = "--trust-server-certificate" in sys.argv
         result = read_sql_server_metadata(DatabaseConnectionSettings(server, database, trust))
         output = APP_DIR / "db_self_test_result.txt"
