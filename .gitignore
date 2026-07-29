@@ -1,0 +1,30 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+build/
+dist/
+*.spec
+
+# PyInstaller output. Rebuild it with the command in the README instead of
+# committing a 60 MB binary into git history.
+*.exe
+
+# Runtime logs and exports
+logs/*.csv
+*_legacy_*.csv
+link_status_history.csv
+db_self_test_result.txt
+
+# Local config may point at real internal servers, so keep it out of the repo.
+config.yaml
+config.local.yaml
+
+# Secrets
+.env
+*.pem
+*.pfx
+*.key

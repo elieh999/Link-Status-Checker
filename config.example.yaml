@@ -1,0 +1,29 @@
+check_interval_seconds: 30
+timeout_seconds: 8
+ssl_expiry_warning_days: 30
+max_concurrent_checks: 10
+
+links:
+  - name: Main Website
+    url: https://example.com
+  - name: Admin Portal
+    url: https://admin.example.com
+
+iis_services:
+  - display_name: IIS Web Service
+    service_name: W3SVC
+    actions_enabled: true
+  - display_name: Windows Process Activation Service
+    service_name: WAS
+    actions_enabled: true
+
+database:
+  type: sql_server_2025
+  management_tool: SSMS 22
+  runtime_driver: mssql-python
+  auth_method: windows_integrated
+  server: YOUR_SERVER_NAME
+  database: YOUR_DATABASE_NAME
+  encrypt: true
+  trust_server_certificate: false
+  note: No username or password is stored or accepted by the application.
