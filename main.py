@@ -66,6 +66,10 @@ DEFAULT_INTERVAL_SECONDS = 30
 DEFAULT_MAX_CONCURRENT_CHECKS = 10
 MAX_LINKS_SOFT_LIMIT = 50
 
+# The dashboard is meant to be left running for days on a 30 second timer, so
+# the in memory history has to stop somewhere. logs/checks.csv keeps everything.
+MAX_HISTORY_ROWS = 500
+
 TABLE_URL_LIMIT = 72
 TABLE_MESSAGE_LIMIT = 90
 CARD_URL_LIMIT = 62
@@ -1778,6 +1782,7 @@ class MainWindow(QMainWindow):
             card.update_result(result)
         self.results.insert(0, result)
         self._add_history_row(result)
+        self._trim_history()
         append_check_log(result)
         self.pending_checks = max(0, self.pending_checks - 1)
         if self.pending_checks == 0:
@@ -1860,6 +1865,17 @@ class MainWindow(QMainWindow):
             if column == 6:
                 item.setForeground(QColor(self._ssl_color(result.ssl_status)))
             self.history.setItem(0, column, item)
+
+    def _trim_history(self) -> None:
+        """Drop the oldest rows once the display cap is reached.
+
+        Newest rows are inserted at index 0, so the tail is the oldest. Only the
+        on screen table and the in memory list are trimmed; logs/checks.csv is
+        the durable record and keeps every check.
+        """
+        del self.results[MAX_HISTORY_ROWS:]
+        while self.history.rowCount() > MAX_HISTORY_ROWS:
+            self.history.removeRow(self.history.rowCount() - 1)
 
     def _dns_color(self, status: str) -> str:
         return {
