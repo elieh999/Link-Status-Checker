@@ -397,6 +397,11 @@ def lookup_domain_ips(normalized_url: str) -> DnsLookupResult:
         return DnsLookupResult(domain, "", [], "FAILED", str(exc))
     except OSError as exc:
         return DnsLookupResult(domain, "", [], "FAILED", str(exc))
+    except (UnicodeError, ValueError) as exc:
+        # A DNS label longer than 63 characters makes getaddrinfo raise
+        # UnicodeError, which is a ValueError and not an OSError, so it used to
+        # escape this function and kill the worker thread running the check.
+        return DnsLookupResult(domain, "", [], "FAILED", f"Invalid host name: {exc}")
 
 
 def extract_cert_name(parts: tuple[tuple[tuple[str, str], ...], ...]) -> str:
@@ -471,6 +476,10 @@ def check_ssl_certificate(normalized_url: str, timeout_seconds: int, warning_day
         return SslCheckResult("SSL ERROR", "", "", "", "", str(exc))
     except OSError as exc:
         return SslCheckResult("SSL ERROR", "", "", "", "", str(exc))
+    except (UnicodeError, ValueError) as exc:
+        # Covers an over long host name and a notAfter field that does not match
+        # the expected certificate date format.
+        return SslCheckResult("SSL ERROR", "", "", "", "", f"Certificate could not be read: {exc}")
 
 
 def availability_from_http_code(code: int) -> tuple[str, str, str]:
@@ -506,6 +515,9 @@ def check_https_availability(normalized_url: str, timeout_seconds: int) -> tuple
     except OSError as exc:
         response_ms = str(int((time.perf_counter() - start) * 1000))
         return "INACTIVE", "HTTPS FAILED", response_ms, "-", str(exc)
+    except (UnicodeError, ValueError) as exc:
+        response_ms = str(int((time.perf_counter() - start) * 1000))
+        return "INACTIVE", "HTTPS FAILED", response_ms, "-", f"Invalid URL: {exc}"
 
 
 def check_target(target: LinkTarget, timeout_seconds: int, warning_days: int) -> LinkCheckResult:
