@@ -1025,7 +1025,14 @@ def run_iis_action(action: str, service_name: str) -> IisActionResult:
             output = completed.stdout or completed.stderr
             if completed.returncode not in {0, 1056}:
                 return IisActionResult(timestamp, action, service_name, False, friendly_service_error(output))
-            wait_for_service_state(service_name, "RUNNING")
+            if not wait_for_service_state(service_name, "RUNNING"):
+                return IisActionResult(
+                    timestamp,
+                    action,
+                    service_name,
+                    False,
+                    "Start was accepted but the service did not reach RUNNING in time.",
+                )
             return IisActionResult(timestamp, action, service_name, True, "Service is running.")
 
         if action == "restart":
@@ -1033,12 +1040,26 @@ def run_iis_action(action: str, service_name: str) -> IisActionResult:
             stop_output = stop_result.stdout or stop_result.stderr
             if stop_result.returncode not in {0, 1062}:
                 return IisActionResult(timestamp, action, service_name, False, friendly_service_error(stop_output))
-            wait_for_service_state(service_name, "STOPPED")
+            if not wait_for_service_state(service_name, "STOPPED"):
+                return IisActionResult(
+                    timestamp,
+                    action,
+                    service_name,
+                    False,
+                    "Stop was accepted but the service did not reach STOPPED in time. It was not restarted.",
+                )
             start_result = run_sc_command(["start", service_name])
             start_output = start_result.stdout or start_result.stderr
             if start_result.returncode not in {0, 1056}:
                 return IisActionResult(timestamp, action, service_name, False, friendly_service_error(start_output))
-            wait_for_service_state(service_name, "RUNNING")
+            if not wait_for_service_state(service_name, "RUNNING"):
+                return IisActionResult(
+                    timestamp,
+                    action,
+                    service_name,
+                    False,
+                    "Service was stopped but did not come back to RUNNING in time.",
+                )
             return IisActionResult(timestamp, action, service_name, True, "Service restarted and running.")
 
         return IisActionResult(timestamp, action, service_name, False, "Unsupported IIS action.")
