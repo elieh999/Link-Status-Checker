@@ -307,13 +307,18 @@ def now_text() -> str:
 
 
 def shorten_middle(text: str, max_chars: int) -> str:
+    if max_chars <= 0:
+        return ""
     if len(text) <= max_chars:
         return text
     if max_chars <= 8:
         return text[:max_chars]
+    # front + back must add up to keep exactly. Clamping either side with a
+    # minimum blows the budget and returns a string longer than max_chars,
+    # which is how this used to widen table columns past their set width.
     keep = max_chars - 3
-    front = max(8, int(keep * 0.62))
-    back = max(8, keep - front)
+    front = max(1, int(keep * 0.62))
+    back = keep - front
     return f"{text[:front]}...{text[-back:]}"
 
 
