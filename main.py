@@ -113,6 +113,9 @@ IIS_SERVICES = {
 DB_SERVER_PATTERN = re.compile(r"^[A-Za-z0-9_.\\,: -]{1,160}$")
 DB_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.$ -]{1,128}$")
 
+SCHEME_PREFIX_PATTERN = re.compile(r"^([A-Za-z][A-Za-z0-9+.\-]*)://")
+HOST_PORT_PATTERN = re.compile(r"^[A-Za-z0-9._\-]+:\d+(?:[/?#].*)?$")
+
 
 @dataclass(frozen=True)
 class LinkTarget:
@@ -340,18 +343,28 @@ def normalize_to_https(raw_url: str) -> str:
     if not url:
         raise ValueError("URL is empty.")
 
-    parsed = urlparse(url)
-    if not parsed.scheme:
+    scheme_match = SCHEME_PREFIX_PATTERN.match(url)
+    if scheme_match:
+        if scheme_match.group(1).lower() not in {"http", "https"}:
+            raise ValueError("Only HTTP and HTTPS URLs are supported.")
+        parsed = urlparse(url)
+    elif HOST_PORT_PATTERN.match(url):
+        # urlparse reads "localhost:8080" as scheme "localhost" with path
+        # "8080", so a bare internal host with a port has to get the scheme
+        # attached before it is parsed at all.
         parsed = urlparse("https://" + url)
-    elif parsed.scheme.lower() == "http":
-        parsed = parsed._replace(scheme="https")
-    elif parsed.scheme.lower() != "https":
+    elif ":" in url.split("/", 1)[0]:
+        # Something like "mailto:someone@example.com": a scheme we do not want.
         raise ValueError("Only HTTP and HTTPS URLs are supported.")
+    else:
+        parsed = urlparse("https://" + url)
 
-    if not parsed.netloc:
+    if not parsed.hostname:
         raise ValueError("URL must include a host.")
 
-    parsed = parsed._replace(scheme="https", fragment="")
+    # An empty path and "/" address the same page. Normalizing to "/" keeps the
+    # dashboard from showing the same site on two cards.
+    parsed = parsed._replace(scheme="https", path=parsed.path or "/", fragment="")
     return urlunparse(parsed)
 
 
