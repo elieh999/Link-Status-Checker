@@ -8,6 +8,9 @@ env/
 build/
 dist/
 *.spec
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
 # PyInstaller output. Rebuild it with the command in the README instead of
 # committing a 60 MB binary into git history.
