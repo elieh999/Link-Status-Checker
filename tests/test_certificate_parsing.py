@@ -97,10 +97,12 @@ def test_der_parser_agrees_with_python_on_a_valid_certificate():
     host = "example.com"
     context = ssl.create_default_context()
     try:
-        with socket.create_connection((host, 443), timeout=10) as sock:
-            with context.wrap_socket(sock, server_hostname=host) as tls:
-                parsed = tls.getpeercert()
-                der = tls.getpeercert(binary_form=True)
+        with (
+            socket.create_connection((host, 443), timeout=10) as sock,
+            context.wrap_socket(sock, server_hostname=host) as tls,
+        ):
+            parsed = tls.getpeercert()
+            der = tls.getpeercert(binary_form=True)
     except OSError as exc:
         pytest.skip(f"network unavailable: {exc}")
 

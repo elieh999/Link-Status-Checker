@@ -15,6 +15,9 @@ ignore = [
     # Qt method overrides such as mousePressEvent and closeEvent are camelCase
     # by definition, so naming rules would fight the framework.
     "N802",
+    # The one place this fires is the frozen vs source APP_DIR choice, where the
+    # suggested ternary runs past the line limit and reads worse than the if.
+    "SIM108",
 ]
 
 [tool.ruff.lint.per-file-ignores]

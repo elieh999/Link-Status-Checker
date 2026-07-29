@@ -535,9 +535,11 @@ def check_ssl_certificate(normalized_url: str, timeout_seconds: int, warning_day
 
     try:
         context = ssl.create_default_context()
-        with socket.create_connection((host, port), timeout=timeout_seconds) as sock:
-            with context.wrap_socket(sock, server_hostname=host) as tls:
-                cert = tls.getpeercert()
+        with (
+            socket.create_connection((host, port), timeout=timeout_seconds) as sock,
+            context.wrap_socket(sock, server_hostname=host) as tls,
+        ):
+            cert = tls.getpeercert()
 
         expires_raw = cert.get("notAfter", "")
         expires_at = ""
@@ -930,7 +932,8 @@ def read_sql_server_metadata(settings: DatabaseConnectionSettings) -> DatabaseMe
                     TYPE_NAME(c.user_type_id) AS data_type,
                     CASE
                         WHEN c.max_length = -1 THEN 'MAX'
-                        WHEN TYPE_NAME(c.user_type_id) IN ('nvarchar', 'nchar') THEN CONVERT(varchar(20), c.max_length / 2)
+                        WHEN TYPE_NAME(c.user_type_id) IN ('nvarchar', 'nchar')
+                            THEN CONVERT(varchar(20), c.max_length / 2)
                         ELSE CONVERT(varchar(20), c.max_length)
                     END AS max_length,
                     CASE WHEN c.is_nullable = 1 THEN 'YES' ELSE 'NO' END AS nullable
@@ -1181,7 +1184,8 @@ class LinkCard(QFrame):
         date = result.certificate_expires_at or "-"
         self.expiry_label.setText(f"Expires: {expiry} days" if expiry != "-" else "Expires: -")
         self.expiry_label.setToolTip(date)
-        response = f"{result.response_time_ms} ms" if result.response_time_ms and result.response_time_ms != "-" else "-"
+        has_timing = result.response_time_ms and result.response_time_ms != "-"
+        response = f"{result.response_time_ms} ms" if has_timing else "-"
         self.response_label.setText(f"Response: {response}")
         self.checked_label.setText(f"Checked: {result.checked_at.split(' ')[-1]}")
         self.message_label.setText(f"Message: {shorten_middle(result.message, CARD_MESSAGE_LIMIT)}")
@@ -1544,7 +1548,8 @@ class MainWindow(QMainWindow):
         layout.setSpacing(12)
 
         auth_note = QLabel(
-            "Secure mode: SQL Server 2025 with Windows Integrated Authentication. SSMS 22 is used for setup; the app never accepts usernames or passwords."
+            "Secure mode: SQL Server 2025 with Windows Integrated Authentication. "
+            "SSMS 22 is used for setup; the app never accepts usernames or passwords."
         )
         auth_note.setObjectName("DatabaseNote")
         auth_note.setWordWrap(True)
@@ -1996,7 +2001,10 @@ class MainWindow(QMainWindow):
         status_text = "OK" if result.success else "FAILED"
         self.db_status_label.setText(f"{result.timestamp} | {status_text}: {result.message}")
         self.db_summary_label.setText(
-            "Database: {database}    Size: {size} MB    Schemas: {schemas}    Tables: {tables}    Last read: {last_read}".format(
+            (
+                "Database: {database}    Size: {size} MB    Schemas: {schemas}    "
+                "Tables: {tables}    Last read: {last_read}"
+            ).format(
                 database=result.database_name or "-",
                 size=result.database_size_mb or "-",
                 schemas=len(result.schemas),

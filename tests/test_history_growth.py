@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from conftest import make_result
 
 import main
-from conftest import make_result
 
 
 @pytest.fixture(autouse=True)
