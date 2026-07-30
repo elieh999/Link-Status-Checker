@@ -40,9 +40,11 @@ files beside it.
 * Optional tests skipped: 1
 * Ruff: passed
 * Formatting check: passed
-* Final executable: 54,925,925 bytes
-* Size reduction: 10,289,196 bytes, or 15.78%
-* SHA256: `F246A31ADC53B5F8181D36FDE99151C4BE8FDCD378A490897E27BDD7270C163D`
+* Frozen startup with existing legacy history: passed
+* Normal GUI launch: passed and remained responsive
+* Final executable: 54,924,610 bytes
+* Size reduction: 10,290,511 bytes, or 15.78%
+* SHA256: `0735508EE58D06DBAC60A0CB68230DE9F5F1CEA089A18C3D9A2E939101BF8640`
 
 ## Known limits
 

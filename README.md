@@ -129,8 +129,8 @@ Double click it. Python is not required, no console window opens, and no QSS
 file needs to sit beside the executable. The theme, icon, SQLite support, and
 SQL Server runtime files are bundled.
 
-The verified 3.0.0 executable is `54,925,925` bytes. The previous executable
-was `65,215,121` bytes, so this build is `10,289,196` bytes smaller, a `15.78%`
+The verified 3.0.0 executable is `54,924,610` bytes. The previous executable
+was `65,215,121` bytes, so this build is `10,290,511` bytes smaller, a `15.78%`
 reduction.
 
 Logs, settings, and monitoring history are written under:
