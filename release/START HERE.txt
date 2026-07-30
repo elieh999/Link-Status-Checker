@@ -1,0 +1,14 @@
+Link Status Checker 3.0.0
+
+Double click LinkStatusChecker.exe to start the application.
+
+Python is not required. The light theme, application icon, SQLite support, and
+SQL Server runtime are included in the executable.
+
+The application stores its settings, monitoring history, and logs in:
+
+%LOCALAPPDATA%\LinkStatusChecker
+
+IIS start and restart actions may require administrator permission. SQL Server
+metadata uses the Windows account that is running the application and does not
+ask for a username or password.
