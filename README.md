@@ -1,152 +1,228 @@
 # Link Status Checker
 
-I built this because I got tired of opening a browser tab to check whether our
-sites were still up, and then opening services.msc to check whether IIS was
-still running, and then opening SSMS to look at a database. It is a Windows
-desktop dashboard that does all three in one window.
+I use this dashboard to keep website checks, IIS service controls, and SQL
+Server metadata in one Windows application. It checks each saved website on
+demand or on a schedule, keeps the results in a local SQLite database, and
+explains failures without making the user read raw Python or TLS errors.
 
-It watches websites over HTTPS, resolves their DNS, reads their SSL
-certificates, lets me start or restart the two IIS services I care about, and
-reads database metadata from SQL Server without ever asking me for a password.
+![Overview page](docs/screenshots/overview.png)
 
-![The dashboard with a few sites checked](docs/screenshot.png)
+The Websites page shows the individual checks:
 
-## What it actually does
+![Website cards](docs/screenshots/websites.png)
 
-Websites:
+## What it monitors
 
-- Add one URL at a time, paste a whole list one per line, or load a CSV.
-- Anything you type gets normalized to HTTPS, so `example.com`,
-  `http://example.com` and `https://example.com` all end up as the same target.
-  Internal hosts with a port like `intranet:8080` work too.
-- Every site gets a card showing domain, IP, DNS result, up or down, HTTPS
-  status, SSL status, days until the certificate expires, response time and
-  when it was last checked.
-- Checks run concurrently in a thread pool, so the window does not freeze.
-- Start and stop scheduled monitoring on a timer you pick.
-- Every check is appended to `logs/checks.csv`, and you can export what is on
-  screen to your own CSV.
+For each website the application records:
 
-SSL:
+* DNS resolution and all returned IPv4 or IPv6 addresses
+* HTTPS reachability and the HTTP response code
+* SSL certificate trust and expiry
+* Response time and recent latency samples
+* The current health status and the reason for it
+* Consecutive failures, recovery, and incident state
 
-- Reports `SSL VALID`, `SSL EXPIRES SOON`, `SSL EXPIRED`, `SSL NOT YET VALID`,
-  `SSL ERROR`, or `SSL NOT CHECKED` when a check could not run at all.
-- Certificates that fail validation still get their expiry date and common name
-  read out of the raw certificate bytes, so an expired or self signed cert tells
-  you when it expired instead of showing you nothing.
+The URL on every website card is clickable. It opens through Qt in the default
+browser and only accepts `http` or `https`. It is never passed to a command
+shell.
 
-IIS:
+The IIS page checks, starts, or restarts `W3SVC` and `WAS`. Those two service
+names are fixed in an allowlist. The app does not accept arbitrary service
+commands.
 
-- Status, start and restart for exactly two services, `W3SVC` and `WAS`. The
-  list is a hardcoded allowlist. The app does not run shell commands and will
-  not accept a service name you type in.
-- Start and restart wait for the service to actually reach the state you asked
-  for, and tell you if it did not.
-- Actions are logged to `logs/iis_actions.csv`.
+The Database page reads SQL Server metadata with Windows Integrated
+Authentication. It shows database size, schemas, tables, row counts, and
+columns. There are no username or password fields. Queries are read only and
+the connection uses `ApplicationIntent=ReadOnly`.
 
-Database:
+## Website statuses
 
-- Read only metadata from SQL Server using Windows Integrated Authentication
-  through Microsoft's `mssql-python` package.
-- Shows database size, schemas, tables with row and column counts, and column
-  details.
-- The app never accepts, stores or logs a username or password. Error messages
-  get scrubbed before display so server and database names do not leak.
-- Reads are logged to `logs/database_metadata.csv`.
+Each card always shows all five status names. Only the current one is strongly
+highlighted.
 
-## Running it
+* `Healthy`: DNS, HTTP, content, latency, and required SSL checks passed.
+* `Degraded`: the website is reachable but slow, the certificate expires soon,
+  or a temporary failure has not reached the incident threshold.
+* `Unhealthy`: a confirmed security failure exists, a critical latency limit
+  was crossed, or repeated checks failed.
+* `Maintenance`: the website was intentionally excluded from incidents and
+  uptime.
+* `Unknown`: a reliable result is not available yet.
 
-The quickest way, no Python needed:
+The default response range is HTTP `200` through `399`. A `500` response is
+never shown as healthy. The default latency warning is `1000 ms`, the critical
+limit is `3000 ms`, an incident opens after three failures, and recovery needs
+two successful checks.
+
+## Website settings and filters
+
+Use the Edit button on a card to change its display name, URL, environment,
+customer, tags, IIS relationship, accepted HTTP range, content rules, timeout,
+response time limits, failure and recovery thresholds, SSL warning period,
+monitoring state, or maintenance note. These settings are stored in SQLite and
+restored when the application starts again.
+
+The Websites page combines text, status, environment, and condition filters.
+Condition filters cover SSL expiry, invalid SSL, slow responses, open
+incidents, IIS related sites, and sites with monitoring disabled. Results can
+be sorted by name, severity, response time, SSL expiry, or last check. Text
+search includes the website name, domain, URL, IP address, customer, and tags.
+
+## Uptime and incidents
+
+History is stored in:
 
 ```text
-LinkStatusChecker.exe
+%LOCALAPPDATA%\LinkStatusChecker\monitoring.db
 ```
 
-From source, Python 3.10 or newer:
+Observed uptime is calculated as:
+
+```text
+(Healthy checks + Degraded checks)
+---------------------------------- x 100
+ Healthy + Degraded + Unhealthy
+```
+
+Maintenance and Unknown checks are shown separately and excluded from the
+denominator. The Overview page can calculate the last hour, 24 hours, 7 days,
+30 days, or 90 days.
+
+An incident opens when a website reaches the configured failure threshold. New
+failed checks remain part of the same incident. The incident closes after the
+configured number of successful recovery checks.
+
+The dashboard also shows average latency, median and p95 calculations in the
+stored analytics layer, current status totals, open incidents, slow websites,
+and certificates that need attention.
+
+## SSL problem explanations
+
+Certificate expiry and certificate trust are separate checks. A certificate can
+have months remaining and still be unsafe because its hostname is wrong or its
+issuer cannot be verified.
+
+The application classifies common problems such as:
+
+* expired or not yet valid certificates
+* hostname mismatch
+* self signed certificates
+* missing intermediate certificates or an untrusted issuer
+* TLS handshake failure
+* DNS failure
+* connection refusal and timeout
+
+The card shows a plain explanation and recommended action. The original
+technical message remains available under Problem details.
+
+## Running the application
+
+The release has one file:
+
+```text
+dist\LinkStatusChecker.exe
+```
+
+Double click it. Python is not required, no console window opens, and no QSS
+file needs to sit beside the executable. The theme, icon, SQLite support, and
+SQL Server runtime files are bundled.
+
+The verified 3.0.0 executable is `54,924,984` bytes. The previous executable
+was `65,215,121` bytes, so this build is `10,290,137` bytes smaller, a `15.78%`
+reduction.
+
+Logs, settings, and monitoring history are written under:
+
+```text
+%LOCALAPPDATA%\LinkStatusChecker
+```
+
+This keeps the app working when the executable is placed in a read only folder
+such as `Program Files`.
+
+## Running from source
+
+Python 3.10 or newer is required:
 
 ```powershell
 py -m pip install -r requirements.txt
 py main.py
 ```
 
-## Running the tests
+Development checks:
 
 ```powershell
 py -m pip install -r requirements-dev.txt
-py -m pytest
 py -m ruff check .
+py -m ruff format --check .
+py -m pytest -m "not network"
 ```
 
-That gives 147 passed and 1 skipped on Windows. The skip is a test for the
-non Windows guard on the IIS controls, which cannot run here on purpose. One
-test reaches the public internet to read a real certificate and is marked
-`network`, so skip it with `py -m pytest -m "not network"` if you are offline.
-
-## Rebuilding the exe
-
-The exe does not update itself when you edit `main.py`, so rebuild it after
-changes:
+Build the Windows executable:
 
 ```powershell
-py -m pip install -r requirements-dev.txt pyinstaller
-py -m PyInstaller --noconfirm --clean --onefile --windowed --name LinkStatusChecker ^
-  --collect-submodules mssql_python ^
-  --add-binary "<site-packages>\mssql_python\ddbc_bindings.cp312-amd64.pyd;mssql_python" ^
-  --add-binary "<site-packages>\mssql_python\msvcp140.dll;mssql_python" ^
-  --add-data "<site-packages>\mssql_python\libs\windows;mssql_python/libs/windows" ^
-  main.py
+powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
 ```
 
-The `--collect-submodules` and `--add-binary` lines matter. Without them
-PyInstaller builds an exe that starts fine but reports that `mssql-python` is
-not installed the moment you click Read Metadata. Do not use
-`--collect-all mssql_python` either, since that bundles the Linux and macOS
-driver binaries into a Windows only exe and adds about 20 MB for nothing.
+The PyInstaller setup deliberately includes only the Windows x64
+`mssql-python` driver files. Optional Azure authentication libraries and
+development packages are excluded because this application uses Windows
+Integrated Authentication.
 
-If PyInstaller cannot delete its own `build` folder, that is usually OneDrive
-holding the files. Build to a path outside your synced folder with `--distpath`
-and `--workpath` and copy the exe back.
+## SQL Server setup
 
-## Known limitations
+Use SSMS to grant the Windows account running the application read access to
+the target database:
 
-Being honest about the rough edges:
+```sql
+USE [YourDatabase];
+GO
+GRANT CONNECT TO [DOMAIN\WindowsUser];
+GRANT VIEW DEFINITION TO [DOMAIN\WindowsUser];
+GO
+```
 
-- `config.example.yaml` is a template and nothing more. The app does not read
-  it. Timeout, interval and concurrency come from the spinners in the window,
-  and the SSL warning threshold and the 50 link cap are constants in `main.py`.
-  I left the file in because it documents the intended shape of a config file I
-  have not written the loader for yet.
-- `ACTIVE` only means the server returned some HTTP response over HTTPS. A site
-  returning 500 on every request still shows as `ACTIVE`. The status column
-  answers "is it reachable", not "is it healthy".
-- The history table keeps the newest 500 rows on screen and drops older ones.
-  Nothing is lost, `logs/checks.csv` keeps every check ever run.
-- Around 50 links is the practical ceiling and the app enforces it.
-- No proxy support. It uses whatever `urllib` picks up from the environment.
-- IIS start and restart usually need the app running as administrator.
-  Otherwise you get an access denied message.
-- IIS controls are disabled on anything that is not Windows.
-- The database panel needs SQL Server reachable and your Windows account
-  granted read access. There is a `Trust server certificate for local test`
-  checkbox for local instances with self signed certificates. Leave it off in
-  production unless your DBA says otherwise.
-- The certificate reader understands the common name and validity dates. It
-  does not read subject alternative names, so a cert valid for the host through
-  a SAN entry shows the common name only.
-- Everything is one 2000 line `main.py`. It works and it is tested, but it
-  wants splitting up.
+The Trust server certificate option is for an approved local or test instance
+with a certificate that is not trusted by Windows. Leave it off for production
+unless the database administrator confirms the exception.
 
-## Files
+More detail is in
+[DATABASE_FEATURE_IMPLEMENTATION.md](DATABASE_FEATURE_IMPLEMENTATION.md).
+
+## Project layout
 
 ```text
-main.py                             the whole app
-theme_light.qss                     the light theme
-tests/                              pytest suite
-requirements.txt                    what the app needs to run
-requirements-dev.txt                what the tests need
-pyproject.toml                      pytest and ruff config
-config.example.yaml                 aspirational, not loaded
-DATABASE_FEATURE_IMPLEMENTATION.md  SQL Server setup and permissions
-logs/                               csv logs, gitignored
-LinkStatusChecker.exe               built artifact, gitignored
+main.py                              small compatibility launcher
+src/link_status_checker/             application package
+src/link_status_checker/domain/      status rules
+src/link_status_checker/monitoring/  clear network and SSL problems
+src/link_status_checker/storage/     SQLite schema, incidents, analytics
+src/link_status_checker/ui/          reusable PySide6 widgets
+assets/                              application icon
+scripts/                             checks, build, benchmark, screenshots
+tests/                               regression and feature tests
+docs/                                architecture and monitoring notes
+LinkStatusChecker.spec               one file Windows build
 ```
+
+## Current limits
+
+The application accepts up to 2,000 saved websites and renders 50 cards at a
+time. Monitoring uses a bounded Qt thread pool with configurable concurrency.
+This is a tested practical target, not a claim of unlimited capacity.
+
+The release test run collected 182 tests: 181 passed and one optional test was
+skipped. Ruff and the formatting check passed. A synthetic benchmark loaded
+and filtered 1,000 saved websites while keeping only 50 card widgets active,
+and calculated analytics over 100,000 stored checks.
+
+Custom analytics date ranges, history retention cleanup, JSON response
+assertions, redirect policy controls, per website schedule overrides, and a
+dedicated last incident date filter are not included yet. Public website
+results still depend on the computer's DNS, proxy, firewall, and network.
+
+IIS start and restart usually need administrator permission. Website checks and
+SQL metadata reads do not.
+
+The benchmark and release evidence are recorded in
+[docs/release_checklist.md](docs/release_checklist.md).
