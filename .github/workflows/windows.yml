@@ -1,0 +1,56 @@
+name: Windows checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: py -m pip install -r requirements-dev.txt pyinstaller
+
+      - name: Create icon
+        run: py scripts/create_icon.py
+
+      - name: Ruff
+        run: |
+          py -m ruff check .
+          py -m ruff format --check .
+
+      - name: Tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: py -m pytest -m "not network"
+
+      - name: Build executable
+        run: py -m PyInstaller --noconfirm --clean LinkStatusChecker.spec
+
+      - name: Frozen smoke test
+        run: |
+          $exe = (Resolve-Path "dist\LinkStatusChecker.exe").Path
+          $result = Join-Path $PWD "dist\smoke_test_result.txt"
+          $process = Start-Process -FilePath $exe `
+            -ArgumentList @("--smoke-test", "--smoke-output", $result) `
+            -PassThru -Wait
+          if ($process.ExitCode -ne 0) {
+            throw "Frozen smoke test failed with exit code $($process.ExitCode)."
+          }
+          Get-Content -LiteralPath $result
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LinkStatusChecker-Windows
+          path: |
+            dist/LinkStatusChecker.exe
+            dist/smoke_test_result.txt
