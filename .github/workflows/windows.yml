@@ -38,8 +38,15 @@ jobs:
 
       - name: Frozen smoke test
         run: |
-          dist\LinkStatusChecker.exe --smoke-test --smoke-output dist\smoke_test_result.txt
-          Get-Content dist\smoke_test_result.txt
+          $exe = (Resolve-Path "dist\LinkStatusChecker.exe").Path
+          $result = Join-Path $PWD "dist\smoke_test_result.txt"
+          $process = Start-Process -FilePath $exe `
+            -ArgumentList @("--smoke-test", "--smoke-output", $result) `
+            -PassThru -Wait
+          if ($process.ExitCode -ne 0) {
+            throw "Frozen smoke test failed with exit code $($process.ExitCode)."
+          }
+          Get-Content -LiteralPath $result
 
       - uses: actions/upload-artifact@v4
         with:
