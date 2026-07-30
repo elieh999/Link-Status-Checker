@@ -10,6 +10,8 @@
   statistics, certificate snapshots, and incident tracking.
 * Added the Overview, Websites, IIS, Database, History, and Settings pages.
 * Added status filters, search, pagination, and lightweight latency sparklines.
+* Changed the Websites page to one full page scroll so every card keeps its
+  full height without a separate dashboard scrollbar.
 * Removed the 50 website cap. The tested target is 2,000 saved websites with 50
   rendered cards per page.
 * Moved writable data to `%LOCALAPPDATA%\LinkStatusChecker`.

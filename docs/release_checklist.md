@@ -40,9 +40,9 @@ files beside it.
 * Optional tests skipped: 1
 * Ruff: passed
 * Formatting check: passed
-* Final executable: 54,924,984 bytes
-* Size reduction: 10,290,137 bytes, or 15.78%
-* SHA256: `22496E5141AB487054452886DE939E586FAB2D0AC5AFFBC329CBF0D1BE8C7761`
+* Final executable: 54,925,925 bytes
+* Size reduction: 10,289,196 bytes, or 15.78%
+* SHA256: `F246A31ADC53B5F8181D36FDE99151C4BE8FDCD378A490897E27BDD7270C163D`
 
 ## Known limits
 

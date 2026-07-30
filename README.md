@@ -67,6 +67,8 @@ Condition filters cover SSL expiry, invalid SSL, slow responses, open
 incidents, IIS related sites, and sites with monitoring disabled. Results can
 be sorted by name, severity, response time, SSL expiry, or last check. Text
 search includes the website name, domain, URL, IP address, customer, and tags.
+Cards stay in a full height two column grid. The entire page scrolls as one
+surface, so the website list does not have a separate nested scrollbar.
 
 ## Uptime and incidents
 
@@ -127,8 +129,8 @@ Double click it. Python is not required, no console window opens, and no QSS
 file needs to sit beside the executable. The theme, icon, SQLite support, and
 SQL Server runtime files are bundled.
 
-The verified 3.0.0 executable is `54,924,984` bytes. The previous executable
-was `65,215,121` bytes, so this build is `10,290,137` bytes smaller, a `15.78%`
+The verified 3.0.0 executable is `54,925,925` bytes. The previous executable
+was `65,215,121` bytes, so this build is `10,289,196` bytes smaller, a `15.78%`
 reduction.
 
 Logs, settings, and monitoring history are written under:

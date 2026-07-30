@@ -64,6 +64,7 @@ def main() -> int:
             "https://checkout.example.com/",
             "https://intranet.example.com/",
             "https://reports.example.com/",
+            *[f"https://service-{index:02d}.example.com/" for index in range(1, 20)],
         ]
         window.add_links(urls)
         window.handle_link_result(result(urls[0], response=214))
@@ -71,6 +72,8 @@ def main() -> int:
         window.handle_link_result(result(urls[2], response=380, ssl_status="SSL UNTRUSTED"))
         window.handle_link_result(result(urls[3], response=291))
         window.handle_status_request(urls[3], "MAINTENANCE")
+        for index, url in enumerate(urls[5:], start=1):
+            window.handle_link_result(result(url, response=180 + index * 11))
         window.show()
         app.processEvents()
 
@@ -78,6 +81,9 @@ def main() -> int:
         app.processEvents()
         window.grab().save(str(output / "overview.png"))
         window.show_page(1)
+        app.processEvents()
+        websites_page = window.page_stack.widget(1)
+        websites_page.verticalScrollBar().setValue(560)
         app.processEvents()
         window.grab().save(str(output / "websites.png"))
         window.close()

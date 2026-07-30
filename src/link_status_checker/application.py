@@ -1948,12 +1948,15 @@ class MainWindow(QMainWindow):
         pager.addStretch(1)
         dashboard_layout.addLayout(pager)
 
-        dashboard_scroll = QScrollArea()
-        dashboard_scroll.setWidgetResizable(True)
-        dashboard_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        dashboard_scroll.setWidget(dashboard)
-        outer.addWidget(dashboard_scroll, 1)
-        return content
+        outer.addWidget(dashboard)
+
+        page_scroll = QScrollArea()
+        page_scroll.setObjectName("WebsitesPageScroll")
+        page_scroll.setWidgetResizable(True)
+        page_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        page_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        page_scroll.setWidget(content)
+        return page_scroll
 
     def _build_settings_page(self) -> QWidget:
         content = QWidget()

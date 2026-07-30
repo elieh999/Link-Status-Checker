@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 
 from conftest import make_result
+from PySide6.QtWidgets import QScrollArea
 
 import main
 
@@ -116,3 +117,11 @@ def test_website_filters_work_together_and_reset(window):
         production.normalized_url,
         staging.normalized_url,
     ]
+
+
+def test_websites_use_one_full_page_scroll_area(window):
+    websites_page = window.page_stack.widget(1)
+
+    assert isinstance(websites_page, QScrollArea)
+    assert websites_page.objectName() == "WebsitesPageScroll"
+    assert websites_page.widget().findChildren(QScrollArea) == []
