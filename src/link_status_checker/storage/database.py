@@ -12,6 +12,17 @@ from typing import Any
 SCHEMA_VERSION = 1
 
 
+def parse_timestamp_utc(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def timestamp_to_utc_iso(value: str) -> str:
+    return parse_timestamp_utc(value).isoformat()
+
+
 @dataclass(frozen=True)
 class AnalyticsSummary:
     total_checks: int = 0
@@ -222,6 +233,7 @@ class MonitoringStore:
         issuer: str = "",
         subject: str = "",
     ) -> None:
+        checked_at = timestamp_to_utc_iso(checked_at)
         with self.connect() as connection:
             connection.execute(
                 """
@@ -405,8 +417,11 @@ class MonitoringStore:
         uptime = available / denominator * 100 if denominator else None
         durations = []
         for row in duration_rows:
-            started = datetime.fromisoformat(row["started_at"])
-            ended = datetime.fromisoformat(row["ended_at"])
+            try:
+                started = parse_timestamp_utc(row["started_at"])
+                ended = parse_timestamp_utc(row["ended_at"])
+            except (AttributeError, TypeError, ValueError):
+                continue
             durations.append(max(0, int((ended - started).total_seconds())))
         return AnalyticsSummary(
             total_checks=len(rows),

@@ -82,3 +82,34 @@ def test_percentile_uses_linear_interpolation():
     assert percentile([], 0.95) is None
     assert percentile([200], 0.95) == 200
     assert percentile([100, 200, 300, 400, 500], 0.95) == 480
+
+
+def test_analytics_accepts_legacy_naive_incident_timestamps(tmp_path):
+    store = MonitoringStore(tmp_path / "monitoring.db")
+    website_id = store.upsert_website("https://legacy.example.com/", "Legacy")
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    legacy_start = now.replace(tzinfo=None).isoformat()
+    utc_end = (now + timedelta(seconds=75)).isoformat()
+    with store.connect() as connection:
+        connection.execute(
+            """
+            INSERT INTO incidents(
+                website_id, started_at, detected_at, recovered_at, reason,
+                last_problem_code, failed_checks, open
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+            """,
+            (
+                website_id,
+                legacy_start,
+                legacy_start,
+                utc_end,
+                "Legacy incident",
+                "legacy",
+                3,
+            ),
+        )
+
+    summary = store.analytics(now - timedelta(minutes=1))
+
+    assert summary.incident_count == 1
+    assert summary.longest_outage_seconds == 75
