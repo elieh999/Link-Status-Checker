@@ -2,3 +2,4 @@
 pytest>=8.0
 pytest-qt>=4.4
 ruff>=0.6
+Pillow>=10.0
