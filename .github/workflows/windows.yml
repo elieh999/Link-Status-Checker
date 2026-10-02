@@ -41,7 +41,7 @@ jobs:
           $exe = (Resolve-Path "dist\LinkStatusChecker.exe").Path
           $result = Join-Path $PWD "dist\smoke_test_result.txt"
           $process = Start-Process -FilePath $exe `
-            -ArgumentList @("--smoke-test", "--smoke-output", $result) `
+            -ArgumentList @("--smoke-test", "--smoke-output=$result") `
             -PassThru -Wait
           if ($process.ExitCode -ne 0) {
             throw "Frozen smoke test failed with exit code $($process.ExitCode)."

@@ -3158,6 +3158,10 @@ class MainWindow(QMainWindow):
 
 def argument_value(argv: list[str], flag: str, default: str) -> str:
     """The value after a flag, or the default when the flag or value is absent."""
+    inline_prefix = f"{flag}="
+    for argument in argv:
+        if argument.startswith(inline_prefix):
+            return argument[len(inline_prefix) :]
     if flag not in argv:
         return default
     position = argv.index(flag) + 1
