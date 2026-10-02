@@ -1,0 +1,17 @@
+{
+  "recorded_at": "2026-07-30T11:53:28.192394+00:00",
+  "machine": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 186 Stepping 3, GenuineIntel",
+    "python": "3.12.10"
+  },
+  "save_2000_websites_seconds": 0.0163,
+  "write_100000_checks_seconds": 3.5576,
+  "analytics_100000_checks_seconds": 0.8707,
+  "load_and_render_1000_websites_seconds": 1.459,
+  "filter_1000_websites_seconds": 0.3918,
+  "visible_card_limit": 50,
+  "filtered_visible_cards": 11,
+  "analytics_total_checks": 100000,
+  "analytics_uptime_percent": 100.0
+}
