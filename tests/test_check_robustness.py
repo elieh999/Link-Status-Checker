@@ -66,6 +66,54 @@ def test_check_target_returns_a_result_for_a_hopeless_url():
     assert result.dns_status == "FAILED"
 
 
+def test_dns_failure_has_a_clear_problem_and_keeps_technical_details(monkeypatch):
+    target = main.LinkTarget("missing", "missing.test", "https://missing.test/")
+    monkeypatch.setattr(
+        main,
+        "lookup_domain_ips",
+        lambda _url: main.DnsLookupResult("missing.test", "", [], "FAILED", "Name or service not known"),
+    )
+    monkeypatch.setattr(
+        main,
+        "check_ssl_certificate",
+        lambda *_args: main.SslCheckResult("SSL NOT CHECKED", "", "", "", "", ""),
+    )
+    monkeypatch.setattr(
+        main,
+        "check_https_availability",
+        lambda *_args: ("INACTIVE", "HTTPS FAILED", "30", "-", "Name or service not known"),
+    )
+    result = main.check_target(target, 2, 30)
+    assert result.problem_code == "dns_failure"
+    assert result.problem_title == "Domain name could not be resolved"
+    assert result.problem_explanation == "The computer could not find an IP address for missing.test."
+    assert result.technical_details == "Name or service not known"
+
+
+def test_http_failure_says_which_response_was_unexpected(monkeypatch):
+    target = main.LinkTarget("api", "api.test", "https://api.test/")
+    monkeypatch.setattr(
+        main,
+        "lookup_domain_ips",
+        lambda _url: main.DnsLookupResult("api.test", "203.0.113.2", ["203.0.113.2"], "RESOLVED", ""),
+    )
+    monkeypatch.setattr(
+        main,
+        "check_ssl_certificate",
+        lambda *_args: main.SslCheckResult("SSL VALID", "2027-01-01", "180", "Test CA", "api.test", "Valid"),
+    )
+    monkeypatch.setattr(
+        main,
+        "check_https_availability",
+        lambda *_args: ("ACTIVE", "HTTPS OK", "40", "500", "Website responded over HTTPS."),
+    )
+    result = main.check_target(target, 2, 30)
+    assert result.health_status == "DEGRADED"
+    assert result.problem_code == "http_error"
+    assert "HTTP 500" in result.problem_title
+    assert "200 through 399" in result.problem_explanation
+
+
 def test_worker_emits_a_result_even_when_the_check_explodes(qtbot, monkeypatch):
     """Regression: LinkCheckWorker.run had no guard, so any unexpected
     exception killed the runnable without emitting. MainWindow counts those

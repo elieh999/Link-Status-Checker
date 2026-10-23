@@ -24,6 +24,8 @@ def log_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "CHECK_LOG_FILE", tmp_path / "checks.csv")
     monkeypatch.setattr(main, "IIS_LOG_FILE", tmp_path / "iis_actions.csv")
     monkeypatch.setattr(main, "DATABASE_LOG_FILE", tmp_path / "database_metadata.csv")
+    monkeypatch.setattr(main, "HISTORY_DB_FILE", tmp_path / "monitoring.db")
+    monkeypatch.setattr(main, "SETTINGS_FILE", tmp_path / "settings.ini")
     return tmp_path
 
 

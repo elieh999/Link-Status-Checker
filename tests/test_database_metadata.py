@@ -121,7 +121,15 @@ def test_db_self_test_uses_the_values_it_is_given(monkeypatch, tmp_path):
     monkeypatch.setattr(
         main.sys,
         "argv",
-        ["main.py", "--db-self-test", "--server", "SQLBOX\\TEST", "--database", "metrics", "--trust-server-certificate"],
+        [
+            "main.py",
+            "--db-self-test",
+            "--server",
+            "SQLBOX\\TEST",
+            "--database",
+            "metrics",
+            "--trust-server-certificate",
+        ],
     )
     monkeypatch.setattr(main, "APP_DIR", tmp_path)
     monkeypatch.setattr(main, "read_sql_server_metadata", fake_read)
